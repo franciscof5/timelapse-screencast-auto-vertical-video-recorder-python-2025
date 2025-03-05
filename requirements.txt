@@ -1,6 +1,5 @@
 opencv-python
 numpy
 mss
-moviepy
-kivy
 pyaudio
+moviepy
