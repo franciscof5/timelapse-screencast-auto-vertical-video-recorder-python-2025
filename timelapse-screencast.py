@@ -2,8 +2,6 @@ import cv2
 import numpy as np
 import mss
 import time
-from moviepy import VideoFileClip, CompositeVideoClip
-from moviepy.video.fx import Crop
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
@@ -46,8 +44,10 @@ class VideoRecorderApp(App):
 
     def record_screen(self):
         output_file = "output.mp4"
-        timelapse_fps = 30  # Ajustado para evitar aceleração excessiva
+        timelapse_fps = 30  # FPS ajustado
         capture_interval = 1 / timelapse_fps
+        last_frame_time = time.perf_counter()  # Armazenar o tempo inicial
+
         with mss.mss() as sct:
             monitor = sct.monitors[1]  # Captura o monitor principal
             width, height = monitor["width"], monitor["height"]
@@ -59,12 +59,22 @@ class VideoRecorderApp(App):
             print("Gravação iniciada.")
             try:
                 while self.recording:  # Continua gravando até que seja interrompido
-                    screenshot = sct.grab(monitor)
-                    frame = np.array(screenshot)
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
-                    out.write(frame)
-                    self.progress_bar.value = min(100, self.progress_bar.value + 1)
-                    time.sleep(capture_interval)
+                    current_time = time.perf_counter()
+                    elapsed_time = current_time - last_frame_time
+
+                    # Verifica se o intervalo de captura foi atingido
+                    if elapsed_time >= capture_interval:
+                        screenshot = sct.grab(monitor)
+                        frame = np.array(screenshot)
+                        frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+                        out.write(frame)
+
+                        # Atualiza a barra de progresso
+                        self.progress_bar.value = min(100, self.progress_bar.value + 1)
+
+                        # Atualiza o tempo do último frame capturado
+                        last_frame_time = current_time
+
             except Exception as e:
                 print(f"Erro na gravação: {e}")
             finally:
