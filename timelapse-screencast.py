@@ -7,11 +7,14 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.progressbar import ProgressBar
-from kivy.uix.slider import Slider
 from kivy.clock import Clock
 from threading import Thread
 
 class VideoRecorderApp(App):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.timelapse_fps = 30  # Inicializa a variável timelapse_fps
+
     def build(self):
         self.root = BoxLayout(orientation='vertical')
 
@@ -26,20 +29,21 @@ class VideoRecorderApp(App):
         self.progress_bar = ProgressBar(max=100, size_hint=(1, 0.1))
         self.root.add_widget(self.progress_bar)
 
-        # Slider para ajustar o timelapse_fps
-        self.slider_label = Label(text="FPS do Timelapse: 30", size_hint=(1, 0.1))
-        self.root.add_widget(self.slider_label)
-
-        self.fps_slider = Slider(min=1, max=60, value=30, size_hint=(1, 0.1))
-        self.fps_slider.bind(value=self.update_fps)
-        self.root.add_widget(self.fps_slider)
+        # Botão para alternar entre os estados de timelapse
+        self.timelapse_button = Button(text="Ativar Timelapse", size_hint=(1, 0.1))
+        self.timelapse_button.bind(on_press=self.toggle_timelapse)
+        self.root.add_widget(self.timelapse_button)
 
         return self.root
 
-    def update_fps(self, instance, value):
-        # Atualiza o FPS do timelapse e exibe o valor na label
-        self.slider_label.text = f"FPS do Timelapse: {int(value)}"
-        self.timelapse_fps = value  # Atualiza a variável de FPS
+    def toggle_timelapse(self, instance):
+        # Alterna entre ativado e desativado
+        if self.timelapse_fps == 5:
+            self.timelapse_fps = 30
+            self.timelapse_button.text = "Ativar Timelapse"
+        else:
+            self.timelapse_fps = 5
+            self.timelapse_button.text = "Desativar Timelapse"
 
     def toggle_recording(self, instance):
         if self.recording:
@@ -58,7 +62,6 @@ class VideoRecorderApp(App):
 
     def record_screen(self):
         output_file = "output.mp4"
-        self.timelapse_fps = 30  # Valor inicial
         capture_interval = 1 / self.timelapse_fps
         last_frame_time = time.perf_counter()  # Armazenar o tempo inicial
 
