@@ -7,6 +7,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.progressbar import ProgressBar
+from kivy.uix.slider import Slider
 from kivy.clock import Clock
 from threading import Thread
 
@@ -25,7 +26,20 @@ class VideoRecorderApp(App):
         self.progress_bar = ProgressBar(max=100, size_hint=(1, 0.1))
         self.root.add_widget(self.progress_bar)
 
+        # Slider para ajustar o timelapse_fps
+        self.slider_label = Label(text="FPS do Timelapse: 30", size_hint=(1, 0.1))
+        self.root.add_widget(self.slider_label)
+
+        self.fps_slider = Slider(min=1, max=60, value=30, size_hint=(1, 0.1))
+        self.fps_slider.bind(value=self.update_fps)
+        self.root.add_widget(self.fps_slider)
+
         return self.root
+
+    def update_fps(self, instance, value):
+        # Atualiza o FPS do timelapse e exibe o valor na label
+        self.slider_label.text = f"FPS do Timelapse: {int(value)}"
+        self.timelapse_fps = value  # Atualiza a variável de FPS
 
     def toggle_recording(self, instance):
         if self.recording:
@@ -44,8 +58,8 @@ class VideoRecorderApp(App):
 
     def record_screen(self):
         output_file = "output.mp4"
-        timelapse_fps = 30  # FPS ajustado
-        capture_interval = 1 / timelapse_fps
+        self.timelapse_fps = 30  # Valor inicial
+        capture_interval = 1 / self.timelapse_fps
         last_frame_time = time.perf_counter()  # Armazenar o tempo inicial
 
         with mss.mss() as sct:
@@ -74,6 +88,9 @@ class VideoRecorderApp(App):
 
                         # Atualiza o tempo do último frame capturado
                         last_frame_time = current_time
+
+                        # Atualiza o intervalo com o novo FPS em tempo real
+                        capture_interval = 1 / self.timelapse_fps
 
             except Exception as e:
                 print(f"Erro na gravação: {e}")
