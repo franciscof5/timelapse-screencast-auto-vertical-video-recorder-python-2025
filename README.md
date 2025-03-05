@@ -1,5 +1,8 @@
 # Timelapse Screencast Recorder
 
+## Todo
+Logo timelapse overlay
+
 ## Overview
 
 This project is inspired by the work of Rafael Pedreiro, a Brazilian craftsman who shares his physical labor videos online, particularly his wall-building projects. These videos are fascinating when sped up using a timelapse technique, and the goal of this project is to bring a similar experience to programming live streams.
