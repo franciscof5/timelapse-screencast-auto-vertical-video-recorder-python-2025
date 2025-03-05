@@ -4,7 +4,7 @@ import mss
 import time
 import pyaudio
 import wave
-from moviepy import VideoFileClip, AudioFileClip, concatenate_videoclips
+from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_videoclips
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
@@ -96,39 +96,12 @@ class VideoRecorderApp(App):
             self.audio_thread = Thread(target=self.record_audio, daemon=True)
             self.audio_thread.start()
 
-    def save_audio(self):
-        # Salva o áudio gravado em um arquivo
-        if self.frames_audio:
-            try:
-                with wave.open("output_audio.wav", 'wb') as wf:
-                    wf.setnchannels(1)
-                    wf.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
-                    wf.setframerate(44100)
-                    wf.writeframes(b''.join(self.frames_audio))
-                print("Áudio salvo em 'output_audio.wav'")
-            except Exception as e:
-                print(f"Erro ao salvar áudio: {e}")
-        else:
-            print("Nenhum áudio foi gravado.")
-
     def stop_audio_recording(self):
         # Para a gravação de áudio
+        self.recording_audio = False
         if self.stream:
-            print("Parando a gravação de áudio...")
             self.stream.stop_stream()
             self.stream.close()
-            self.recording_audio = False
-            self.save_audio()
-        else:
-            print("Stream de áudio não iniciado corretamente.")
-        # # Para a gravação de áudio
-        # if self.stream:
-        #     print("Parando a gravação de áudio...")
-        #     self.stream.stop_stream()
-        #     self.stream.close()
-        #     self.recording_audio = False
-        # else:
-        #     print("Stream de áudio não iniciado corretamente.")
 
     def record_audio(self):
         p = pyaudio.PyAudio()
@@ -140,29 +113,22 @@ class VideoRecorderApp(App):
 
         print("Gravando áudio...")
 
-        self.recording_audio = True
-        start_time = time.time()
         while self.recording_audio:
             data = self.stream.read(1024)
             self.frames_audio.append(data)  # Armazena o áudio
-        
-        #self.save_audio()
-        # while self.recording_audio:
-        #     data = self.stream.read(1024)
-        #     self.frames_audio.append(data)  # Armazena o áudio
 
-        # if self.frames_audio:
-        #     try:
-        #         with wave.open("output_audio.wav", 'wb') as wf:
-        #             wf.setnchannels(1)
-        #             wf.setsampwidth(p.get_sample_size(pyaudio.paInt16))
-        #             wf.setframerate(44100)
-        #             wf.writeframes(b''.join(self.frames_audio))
-        #         print("Áudio salvo em 'output_audio.wav'")
-        #     except Exception as e:
-        #         print(f"Erro ao salvar áudio: {e}")
-        # else:
-        #     print("Nenhum áudio foi gravado.")
+        if self.frames_audio:
+            try:
+                with wave.open("output_audio.wav", 'wb') as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(p.get_sample_size(pyaudio.paInt16))
+                    wf.setframerate(44100)
+                    wf.writeframes(b''.join(self.frames_audio))
+                print("Áudio salvo em 'output_audio.wav'")
+            except Exception as e:
+                print(f"Erro ao salvar áudio: {e}")
+        else:
+            print("Nenhum áudio foi gravado.")
 
     def record_screen(self):
         output_file = "output_video.mp4"
@@ -206,6 +172,8 @@ class VideoRecorderApp(App):
                 print("Gravação finalizada.")
 
     def save_video_with_audio(self):
+        # Adicionar sleep para esperar o áudio terminar de ser gravado
+        time.sleep(5)  # Espera de 5 segundos para garantir que o áudio foi salvo
         # Junta o vídeo e o áudio em um único arquivo
         video_clip = VideoFileClip("output_video.mp4")
         audio_clip = AudioFileClip("output_audio.wav")
@@ -213,11 +181,10 @@ class VideoRecorderApp(App):
         # Aplicar o efeito de timelapse nos segmentos anotados
         for state, timestamp in self.timelapse_segments:
             if state:  # Timelapse ativado
-                video_clip = video_clip.subclipped(timestamp, video_clip.duration)  # Pega o clipe da ativação até o final
-                video_clip = vfx.MultiplySpeed.MultiplySpeed(factor=0.03)(video_clip)  # Aplica o efeito de aceleração
+                video_clip = vfx.speedx(video_clip, factor=0.03)  # Aplica o efeito de aceleração
 
         # Adiciona o áudio no vídeo
-        video_with_audio = video_clip.with_audio(audio_clip)
+        video_with_audio = video_clip.set_audio(audio_clip)
         
         # Salva o vídeo final com áudio ajustado
         video_with_audio.write_videofile("output_final.mp4", codec="libx264")
