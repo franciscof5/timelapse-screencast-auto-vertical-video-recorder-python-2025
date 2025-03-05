@@ -19,7 +19,7 @@ import os
 class VideoRecorderApp(App):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.timelapse_fps = 30  # FPS inicial
+        self.timelapse_fps = 5  # FPS inicial
         self.recording_audio = False  # Flag para gravação de áudio
         self.frames_audio = []  # Armazenar os frames de áudio
         self.timelapse_segments = []  # Armazenar os segmentos de timelapse (ligado/desligado)
@@ -204,29 +204,92 @@ class VideoRecorderApp(App):
                 print("Arquivo de áudio não encontrado.")
                 audio_clip = None
 
+            audio_clip = None
             # Aplica o efeito de timelapse nos segmentos anotados
-            for state, timestamp in self.timelapse_segments:
-                relative_time = timestamp - self.start_time  # Tempo relativo ao vídeo
-                if state:  # Timelapse ativado
-                    video_clip = video_clip.subclip(relative_time, video_clip.duration)  # Pega o clipe da ativação até o final
-                    video_clip = vfx.speedx(video_clip, factor=0.03)  # Aplica o efeito de aceleração
+            # for state, timestamp in self.timelapse_segments:
+            #     relative_time = timestamp - self.start_time  # Tempo relativo ao vídeo
+            #     if state:  # Timelapse ativado
+            #         video_clip = video_clip.subclipped(relative_time, video_clip.duration)  # Pega o clipe da ativação até o final
+            #         # video_clip = vfx.speedx(video_clip, factor=0.03)  # Aplica o efeito de aceleração
 
             # Adiciona o áudio no vídeo, se disponível
             if audio_clip:
-                video_with_audio = video_clip.set_audio(audio_clip)
+                video_with_audio = video_clip.with_audio(audio_clip)
             else:
                 video_with_audio = video_clip
 
             # Salva o vídeo final com áudio ajustado
-            video_with_audio.write_videofile("output_final.mp4", codec="libx264")
+            video_with_audio.write_videofile("output_final.mp4", codec="libx264", threads=1)
 
             # Limpa os arquivos temporários
             os.remove("output_video.mp4")
             if os.path.exists("output_audio.wav"):
                 os.remove("output_audio.wav")
             print("Arquivos temporários removidos.")
+
+            # time.sleep(3)
+            # self.split_video_based_on_timelapse()
         except Exception as e:
-            print(f"Erro ao salvar o vídeo: {e}")
+            print(f"Erro ao salvar o vídeo: {e}") 
+    
+    def split_video_based_on_timelapse(self, video_file="output_final.mp4"):
+        try:
+            # Carrega o vídeo final
+            video_clip = VideoFileClip(video_file)
+
+            # Lista para armazenar os segmentos de vídeo
+            video_segments = []
+
+            # Variáveis de controle para o segmento atual
+            last_timestamp = 0  # Tempo inicial do vídeo
+
+            # Processa os segmentos de timelapse
+            for state, timestamp in self.timelapse_segments:
+                # Converte o timestamp absoluto para um tempo relativo ao vídeo
+                relative_time = timestamp - self.start_time
+
+                # Garante que o tempo não ultrapasse a duração do vídeo
+                if relative_time > video_clip.duration:
+                    break
+
+                # Adiciona o segmento normal (antes do timelapse)
+                if last_timestamp < relative_time:
+                    normal_segment = video_clip.subclipped(last_timestamp, relative_time)
+                    video_segments.append(normal_segment)
+
+                # Adiciona o segmento acelerado (timelapse)
+                if state:  # Timelapse ativado
+                    # Encontra o próximo timestamp (ou o final do vídeo)
+                    next_timestamp = (
+                        self.timelapse_segments[self.timelapse_segments.index((state, timestamp)) + 1][1] - self.start_time
+                        if self.timelapse_segments.index((state, timestamp)) + 1 < len(self.timelapse_segments)
+                        else video_clip.duration
+                    )
+                    # Garante que o próximo timestamp não ultrapasse a duração do vídeo
+                    next_timestamp = min(next_timestamp, video_clip.duration)
+
+                    # Cria o segmento acelerado
+                    timelapse_segment = video_clip.subclipped(relative_time, next_timestamp)
+                    # timelapse_segment = timelapse_segment.fx(vfx.speedx, factor=10)  # Acelera 10x
+                    video_segments.append(timelapse_segment)
+
+                    # Atualiza o último timestamp processado
+                    last_timestamp = next_timestamp
+
+            # Adiciona o último segmento (se houver)
+            if last_timestamp < video_clip.duration:
+                final_segment = video_clip.subclipped(last_timestamp, video_clip.duration)
+                video_segments.append(final_segment)
+
+            # Salva os segmentos de vídeo
+            for i, segment in enumerate(video_segments):
+                segment_file = f"segment_{i + 1}.mp4"
+                segment.write_videofile(segment_file, codec="libx264", threads=1)
+                print(f"Segmento {i + 1} salvo em {segment_file}")
+
+            print(f"{len(video_segments)} segmentos salvos com sucesso.")
+        except Exception as e:
+            print(f"Erro ao dividir o vídeo: {e}")
 
 if __name__ == "__main__":
     VideoRecorderApp().run()
