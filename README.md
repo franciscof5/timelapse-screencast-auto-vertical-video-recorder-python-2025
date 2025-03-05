@@ -1,7 +1,10 @@
 # Timelapse Screencast Recorder
 
 ## Todo
-Logo timelapse overlay
+[ ] Logo timelapse overlay
+[ ] Mac package
+[ ] System tray mac
+
 
 ## Overview
 
