@@ -1,133 +1,80 @@
-import kivy
-from kivy.app import App
-from kivy.uix.button import Button
-from kivy.uix.textinput import TextInput
-from kivy.uix.switch import Switch
-from kivy.uix.boxlayout import BoxLayout
 import cv2
 import numpy as np
 import mss
 import time
-import datetime
 from moviepy import VideoFileClip, CompositeVideoClip
 from moviepy.video.fx import Crop
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
+from kivy.uix.label import Label
+from kivy.uix.progressbar import ProgressBar
+from kivy.clock import Clock
+from threading import Thread
 
-kivy.require('2.1.0')  # Verifique a versão do Kivy
-
-class ScreenRecorderApp(App):
+class VideoRecorderApp(App):
     def build(self):
-        # Layout com orientação vertical e limitações de tamanho
-        layout = BoxLayout(orientation='vertical', padding=10, spacing=5, size_hint=(None, None), width=300, height=200)
+        self.root = BoxLayout(orientation='vertical')
 
-        # Botão de gravar/Parar
-        self.gravar_button = Button(text="Iniciar Gravação", size_hint=(None, None), width=200, height=40)
-        self.gravar_button.bind(on_press=self.toggle_gravacao)
-        
-        # Campo para FPS
-        self.fps_input = TextInput(text="30", multiline=False, size_hint=(None, None), width=100, height=30)
-        
-        # Switch para FPS personalizado
-        self.fps_switch = Switch(active=False, size_hint=(None, None), width=100, height=50)
-        
-        # Adicionando widgets ao layout
-        layout.add_widget(self.gravar_button)
-        layout.add_widget(self.fps_input)
-        layout.add_widget(self.fps_switch)
+        self.recording = False  # Flag para verificar o estado da gravação
+        self.record_button = Button(text="Iniciar Gravação", size_hint=(1, 0.1), background_color=(0, 1, 0, 1))
+        self.record_button.bind(on_press=self.toggle_recording)
+        self.root.add_widget(self.record_button)
 
-        return layout
+        self.status_label = Label(text="Aguardando ação...", size_hint=(1, 0.1))
+        self.root.add_widget(self.status_label)
 
-    def toggle_gravacao(self, instance):
-        if self.gravar_button.text == "Iniciar Gravação":
-            self.gravar_button.text = "Parar Gravação"
-            # Iniciar a gravação
-            self.start_recording()
+        self.progress_bar = ProgressBar(max=100, size_hint=(1, 0.1))
+        self.root.add_widget(self.progress_bar)
+
+        return self.root
+
+    def toggle_recording(self, instance):
+        if self.recording:
+            self.recording = False
+            self.record_button.text = "Iniciar Gravação"
+            self.record_button.background_color = (0, 1, 0, 1)  # Fundo verde
+            self.status_label.text = "Gravação finalizada."
         else:
-            self.gravar_button.text = "Iniciar Gravação"
-            # Parar a gravação
-            self.stop_recording()
+            self.recording = True
+            self.record_button.text = "Parar Gravação"
+            self.record_button.background_color = (1, 0, 0, 1)  # Fundo vermelho
+            self.status_label.text = "Gravando vídeo..."
+            self.progress_bar.value = 0
+            self.record_thread = Thread(target=self.record_screen, daemon=True)
+            self.record_thread.start()
 
-    def start_recording(self):
-        # Gerar o prefixo com data e hora
-        prefix = datetime.datetime.now().strftime("%Y-%m-%d-%H:%M")
-        video_filename = f"{prefix}-f5-screen-rec.mp4"
-        
-        # Iniciar gravação da tela
-        self.record_screen(video_filename)
-
-    def stop_recording(self):
-        print("Gravação parada!")
-        # Aqui você poderia adicionar a lógica para parar a gravação, salvando o arquivo final
-        
-    def record_screen(self, output_file="output.mp4", capture_interval=1):
+    def record_screen(self):
+        output_file = "output.mp4"
+        timelapse_fps = 30  # Ajustado para evitar aceleração excessiva
+        capture_interval = 1 / timelapse_fps
         with mss.mss() as sct:
             monitor = sct.monitors[1]  # Captura o monitor principal
             width, height = monitor["width"], monitor["height"]
             
-            # Define o codec e cria o gravador de vídeo com FPS elevado
             fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-            output_fps = int(self.fps_input.text) if self.fps_switch.active else 30  # FPS dinâmico
+            output_fps = 30  # FPS ajustado
             out = cv2.VideoWriter(output_file, fourcc, output_fps, (width, height))
 
-            print("Gravação iniciada. Pressione Ctrl+C para parar...")
-
+            print("Gravação iniciada.")
             try:
-                while True:  # Loop contínuo até Ctrl+C
-                    screenshot = sct.grab(monitor)  # Captura a tela
+                while self.recording:  # Continua gravando até que seja interrompido
+                    screenshot = sct.grab(monitor)
                     frame = np.array(screenshot)
                     frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
-
-                    # Adiciona o quadro capturado no arquivo com o tempo correto para aceleração
                     out.write(frame)
-                    
-                    # Espera para a próxima captura a cada 1 segundo
-                    time.sleep(capture_interval)  # Aguarda 1 segundo para a próxima captura
-
-            except KeyboardInterrupt:
-                print("\nGravação finalizada.")
+                    self.progress_bar.value = min(100, self.progress_bar.value + 1)
+                    time.sleep(capture_interval)
+            except Exception as e:
+                print(f"Erro na gravação: {e}")
             finally:
-                out.release()  # Libera o vídeo
+                out.release()
+                print("Gravação finalizada.")
 
-        # Após a gravação, gerar o vídeo nos dois formatos: horizontal e vertical
-        self.create_videos(output_file)
+        self.status_label.text = "Gravação finalizada."
+        self.record_button.text = "Iniciar Gravação"
+        self.record_button.background_color = (0, 1, 0, 1)  # Fundo verde
+        self.recording = False
 
-    def create_videos(self, input_file):
-        video = VideoFileClip(input_file)
-
-        # Formato Horizontal
-        horizontal_output = f"horizontal-{input_file}"
-        video.write_videofile(horizontal_output, codec="libx264", audio_codec="aac")
-        print(f"Vídeo horizontal salvo como {horizontal_output}")
-
-        # Formato Vertical
-        vertical_output = f"vertical-{input_file}"
-        video_vertical = self.transform_to_vertical(video)
-        video_vertical.write_videofile(vertical_output, codec="libx264", audio_codec="aac")
-        print(f"Vídeo vertical salvo como {vertical_output}")
-
-    def transform_to_vertical(self, video):
-        # Dimensões originais
-        largura, altura = video.size
-
-        # Calcular nova largura e altura
-        nova_largura = largura // 2  # Metade da largura original
-        nova_altura = altura * 2  # O dobro da altura original
-
-        # Criar os cortes das metades usando Crop
-        crop_esquerdo = Crop(x1=0, width=nova_largura)
-        crop_direito = Crop(x1=nova_largura, width=nova_largura)
-
-        metade_esquerda = crop_esquerdo.apply(video)
-        metade_direita = crop_direito.apply(video)
-
-        # Posicionar as metades corretamente
-        metade_esquerda = metade_esquerda.with_position(("center", altura))  # Parte de cima
-        metade_direita = metade_direita.with_position(("center", 0))  # Parte de baixo
-
-        # Criar o vídeo final empilhando as duas partes
-        vertical_video = CompositeVideoClip([metade_esquerda, metade_direita], size=(nova_largura, nova_altura))
-
-        return vertical_video
-
-
-if __name__ == '__main__':
-    ScreenRecorderApp().run()
+if __name__ == "__main__":
+    VideoRecorderApp().run()
