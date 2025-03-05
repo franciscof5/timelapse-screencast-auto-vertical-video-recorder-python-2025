@@ -2,3 +2,5 @@ venv
 .DS_Store
 output.mp4
 output*
+*.mp4
+*.wav

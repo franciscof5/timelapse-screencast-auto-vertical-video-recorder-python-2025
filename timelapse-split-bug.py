@@ -30,6 +30,7 @@ class VideoRecorderApp(App):
         self.status_label = None
         self.progress_bar = None
         self.stream = None
+        self.video_count = 1  # Contador para os arquivos de vídeo numerados
 
     def build(self):
         self.root = BoxLayout(orientation='vertical')
@@ -55,19 +56,28 @@ class VideoRecorderApp(App):
         return self.root
 
     def toggle_timelapse(self, instance):
-        # Alterna entre ativado e desativado
-        if self.timelapse_fps == 5:
-            self.timelapse_fps = 30
-            self.timelapse_button.text = "Ativar Timelapse"
-            self.timelapse_segments.append((False, time.time()))  # Marca o tempo em que foi desativado
-        else:
-            self.timelapse_fps = 5
-            self.timelapse_button.text = "Desativar Timelapse"
-            self.timelapse_segments.append((True, time.time()))  # Marca o tempo em que foi ativado
+        # Para a gravação atual e salva o vídeo com áudio
+        if self.recording:
+            # self.recording = False
+            self.record_button.text = "Iniciar Gravação"
+            self.record_button.background_color = (0, 1, 0, 1)  # Fundo verde
+            self.status_label.text = "Gravação finalizada."
+
+            # Salva o vídeo temporário com áudio
+            self.save_video_with_audio()
+            self.video_count += 1  # Incrementa o contador para o próximo arquivo de vídeo
+
+            # Limpa o progresso e prepara a gravação para o próximo segmento
+            self.frames = []
+            self.frames_audio = []
+            self.timelapse_segments = []
+            self.start_audio_recording()
+            self.record_thread = Thread(target=self.record_screen, daemon=True)
+            self.record_thread.start()
 
     def toggle_recording(self, instance):
         if self.recording:
-            self.recording = False
+            # self.recording = False
             self.record_button.text = "Iniciar Gravação"
             self.record_button.background_color = (0, 1, 0, 1)  # Fundo verde
             self.status_label.text = "Gravação finalizada."
@@ -96,12 +106,30 @@ class VideoRecorderApp(App):
             self.audio_thread = Thread(target=self.record_audio, daemon=True)
             self.audio_thread.start()
 
+    def save_audio(self):
+        # Salva o áudio gravado em um arquivo
+        if self.frames_audio:
+            try:
+                with wave.open("output_audio.wav", 'wb') as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
+                    wf.setframerate(44100)
+                    wf.writeframes(b''.join(self.frames_audio))
+                print("Áudio salvo em 'output_audio.wav'")
+            except Exception as e:
+                print(f"Erro ao salvar áudio: {e}")
+        else:
+            print("Nenhum áudio foi gravado.")
+
     def stop_audio_recording(self):
         # Para a gravação de áudio
-        self.recording_audio = False
         if self.stream:
+            print("Parando a gravação de áudio...")
             self.stream.stop_stream()
             self.stream.close()
+            self.recording_audio = False
+        else:
+            print("Stream de áudio não iniciado corretamente.")
 
     def record_audio(self):
         p = pyaudio.PyAudio()
@@ -113,25 +141,16 @@ class VideoRecorderApp(App):
 
         print("Gravando áudio...")
 
+        self.recording_audio = True
+        start_time = time.time()
         while self.recording_audio:
             data = self.stream.read(1024)
             self.frames_audio.append(data)  # Armazena o áudio
-
-        if self.frames_audio:
-            try:
-                with wave.open("output_audio.wav", 'wb') as wf:
-                    wf.setnchannels(1)
-                    wf.setsampwidth(p.get_sample_size(pyaudio.paInt16))
-                    wf.setframerate(44100)
-                    wf.writeframes(b''.join(self.frames_audio))
-                print("Áudio salvo em 'output_audio.wav'")
-            except Exception as e:
-                print(f"Erro ao salvar áudio: {e}")
-        else:
-            print("Nenhum áudio foi gravado.")
+        self.save_audio()
+        
 
     def record_screen(self):
-        output_file = "output_video.mp4"
+        output_file = f"output_video_{self.video_count}.mp4"
         capture_interval = 1 / self.timelapse_fps
         last_frame_time = time.perf_counter()
 
@@ -172,27 +191,34 @@ class VideoRecorderApp(App):
                 print("Gravação finalizada.")
 
     def save_video_with_audio(self):
-        # Adicionar sleep para esperar o áudio terminar de ser gravado
-        time.sleep(5)  # Espera de 5 segundos para garantir que o áudio foi salvo
         # Junta o vídeo e o áudio em um único arquivo
-        video_clip = VideoFileClip("output_video.mp4")
-        audio_clip = AudioFileClip("output_audio.wav")
-
-        # Aplicar o efeito de timelapse nos segmentos anotados
-        for state, timestamp in self.timelapse_segments:
-            if state:  # Timelapse ativado
-                video_clip = vfx.speedx(video_clip, factor=0.03)  # Aplica o efeito de aceleração
+        video_clip = VideoFileClip(f"output_video_{self.video_count}.mp4")
+        # audio_clip = AudioFileClip(f"output_audio_{self.video_count}.wav")
 
         # Adiciona o áudio no vídeo
-        video_with_audio = video_clip.set_audio(audio_clip)
-        
+        # video_with_audio = video_clip.with_audio(audio_clip)
+
         # Salva o vídeo final com áudio ajustado
-        video_with_audio.write_videofile("output_final.mp4", codec="libx264")
+        video_clip.write_videofile(f"output_final_{self.video_count}.mp4", codec="libx264")
 
         # Limpa os arquivos temporários
-        os.remove("output_video.mp4")
-        os.remove("output_audio.wav")
-        print("Arquivos temporários removidos.")
+        # os.remove(f"output_video_{self.video_count}.mp4")
+        # os.remove(f"output_audio_{self.video_count}.wav")
+        # print(f"Arquivos temporários 'output_video_{self.video_count}.mp4' removidos.")
+
+    def concatenate_videos(self):
+        # Concatenar todos os vídeos temporários gerados
+        video_files = [f"output_final_{i}.mp4" for i in range(1, self.video_count+1)]
+        clips = [VideoFileClip(file) for file in video_files]
+        final_clip = concatenate_videoclips(clips)
+
+        # Salva o vídeo final concatenado
+        final_clip.write_videofile("output_final_concat.mp4", codec="libx264")
+
+        # Limpa os arquivos temporários
+        for file in video_files:
+            os.remove(file)
+        print("Todos os vídeos concatenados e arquivos temporários removidos.")
 
 if __name__ == "__main__":
     VideoRecorderApp().run()
