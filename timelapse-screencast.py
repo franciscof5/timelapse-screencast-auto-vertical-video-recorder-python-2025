@@ -16,7 +16,7 @@ class VideoRecorderApp:
         self.root.title("Video Recorder")
         self.root.geometry("300x200")
 
-        self.timelapse_fps = 3  # FPS inicial
+        self.timelapse_fps = 1 # FPS inicial
         self.recording_audio = False  # Flag para gravação de áudio
         self.frames_audio = []  # Armazenar os frames de áudio
         self.timelapse_segments = []  # Armazenar os segmentos de timelapse (ligado/desligado)
@@ -159,7 +159,7 @@ class VideoRecorderApp:
             else:
                 print("Arquivo de áudio não encontrado.")
                 audio_clip = None
-
+            audio_clip = None
             # Adiciona o áudio no vídeo, se disponível
             if audio_clip:
                 video_with_audio = video_clip.with_audio(audio_clip)
