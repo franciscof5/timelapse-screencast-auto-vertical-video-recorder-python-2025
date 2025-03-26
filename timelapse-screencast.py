@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import simpledialog, messagebox
 import cv2
 import numpy as np
 import mss
@@ -9,6 +9,7 @@ import wave
 from moviepy import VideoFileClip, AudioFileClip, concatenate_videoclips
 from threading import Thread
 import os
+from datetime import datetime
 
 class VideoRecorderApp:
     def __init__(self, root):
@@ -29,6 +30,13 @@ class VideoRecorderApp:
         self.record_button = tk.Button(self.root, text="Iniciar Gravação", command=self.toggle_recording)
         self.record_button.pack(pady=20)
 
+        # Campo de entrada de texto abaixo do botão
+        self.text_input_label = tk.Label(self.root, text="Texto adicional:")
+        self.text_input_label.pack(pady=5)
+
+        self.text_input = tk.Entry(self.root, width=40)
+        self.text_input.pack(pady=5)
+
         # Status da gravação
         self.status_label = tk.Label(self.root, text="Aguardando ação...")
         self.status_label.pack(pady=10)
@@ -42,7 +50,6 @@ class VideoRecorderApp:
             self.recording = False
             self.record_button.config(text="Iniciar Gravação")
             self.status_label.config(text="Gravação finalizada.")
-            self.stop_audio_recording()
             self.save_video_with_audio()  # Salva o vídeo e áudio depois que a gravação parar
         else:
             self.recording = True
@@ -53,9 +60,6 @@ class VideoRecorderApp:
             self.frames_audio = []  # Limpa a lista de frames de áudio
             self.timelapse_segments = []  # Limpa os segmentos de timelapse
             self.start_time = time.time()  # Define o tempo de início da gravação
-
-            # Chama a função para iniciar a gravação de áudio
-            self.start_audio_recording()
 
             self.record_thread = Thread(target=self.record_screen, daemon=True)
             self.record_thread.start()
@@ -152,6 +156,18 @@ class VideoRecorderApp:
 
     def save_video_with_audio(self):
         try:
+            # Pergunta pelo complemento
+            complement = simpledialog.askstring("Complemento", "Digite um complemento para o nome do arquivo (deixe em branco para 'timelapse-screencast'):")
+
+            if not complement:
+                complement = "timelapse-screencast"
+
+            # Formata a data e hora
+            timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+
+            # Define o nome do arquivo final
+            file_name = f"{timestamp}-{complement}.mp4"
+
             # Carrega o vídeo e o áudio
             video_clip = VideoFileClip("output_video.mp4")
             if os.path.exists("output_audio.wav"):
@@ -159,7 +175,7 @@ class VideoRecorderApp:
             else:
                 print("Arquivo de áudio não encontrado.")
                 audio_clip = None
-            audio_clip = None
+
             # Adiciona o áudio no vídeo, se disponível
             if audio_clip:
                 video_with_audio = video_clip.with_audio(audio_clip)
@@ -167,18 +183,19 @@ class VideoRecorderApp:
                 video_with_audio = video_clip
 
             # Salva o vídeo final com áudio ajustado
-            video_with_audio.write_videofile("output_final.mp4", codec="libx264", threads=1)
+            video_with_audio.write_videofile(file_name, codec="libx264", threads=1)
 
             # Limpa os arquivos temporários
             os.remove("output_video.mp4")
             if os.path.exists("output_audio.wav"):
                 os.remove("output_audio.wav")
-            print("Arquivos temporários removidos.")
+            print(f"Arquivo salvo como '{file_name}'.")
 
         except Exception as e:
             print(f"Erro ao salvar o vídeo: {e}")
 
 if __name__ == "__main__":
     root = tk.Tk()
+    root.config(bg="lightblue")
     app = VideoRecorderApp(root)
     root.mainloop()
