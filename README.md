@@ -1,9 +1,14 @@
 # Timelapse Screencast Recorder
 
-## Todo
-[ ] Logo timelapse overlay
-[ ] Mac package
-[ ] System tray mac
+### 🎬 **Super módulo de formato de vídeo**
+- [ ] Auto open obs after record
+- [ ] Music and sound themes
+- [ ] Auto cut YouTube reels (3 min max) (accelerate to fit)
+- [ ] One week auto-publish schedule in advance
+- [ ] Add open, ads and close videos (anter gerador)
+- [ ] Logo timelapse overlay
+- [ ] Mac package
+  - [ ] System tray mac
 
 
 ## Overview
