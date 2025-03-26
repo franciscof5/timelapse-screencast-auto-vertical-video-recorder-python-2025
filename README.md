@@ -1,6 +1,6 @@
 # Timelapse Screencast Recorder
 
-### 🎬 **Super módulo de formato de vídeo**
+### 🎬 **TODO**
 - [ ] Auto open obs after record
 - [ ] Music and sound themes
 - [ ] Auto cut YouTube reels (3 min max) (accelerate to fit)
