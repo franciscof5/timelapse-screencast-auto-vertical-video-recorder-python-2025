@@ -8,7 +8,8 @@
 - [ ] Add open, ads and close videos (anter gerador)
 - [ ] Logo timelapse overlay
 - [ ] Mac package
-  - [ ] System tray mac
+  - [ ] System tray mac (https://bit.ly/4jTMxGp)
+- [ ] Community youtube channel
 
 
 ## Overview
