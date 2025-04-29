@@ -9,6 +9,7 @@
 - [ ] Logo timelapse overlay
 - [ ] Mac package
   - [ ] System tray mac (https://bit.ly/4jTMxGp)
+  - [ ] Pomodoros on tray - pomodoros.com.br
 - [ ] Community youtube channel
 
 
