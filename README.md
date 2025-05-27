@@ -2,13 +2,20 @@
 
 ### 🎬 **TODO**
 - [ ] Auto open obs after record
-- [ ] Music and sound themes
-- [ ] Auto cut YouTube reels (3 min max) (accelerate to fit)
-- [ ] One week auto-publish schedule in advance
-- [ ] Add open, ads and close videos (anter gerador)
-- [ ] Logo timelapse overlay
+- [ ] Configurations
+  - [ ] Name of file on GUI
+  - [ ] Select folder to save GUI
+- [ ] Video editor
+  - [ ] Auto cut YouTube reels (3 min max) (accelerate to fit)
+  - [ ] Add open, ads and close videos (anter gerador)
+  - [ ] Logo overlay
+  - [ ] One week auto-publish schedule in advance
+  - [ ] Music and sound themes
+  - [ ] Community youtube channel
 - [ ] Mac package
-  - [ ] System tray mac
+  - [ ] System tray mac (https://bit.ly/4jTMxGp)
+  - [ ] Splash
+  - [ ] Pomodoros on tray - pomodoros.com.br
 
 
 ## Overview
