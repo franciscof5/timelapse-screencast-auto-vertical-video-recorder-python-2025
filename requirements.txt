@@ -1,5 +1,9 @@
+setuptools
+pystray
+cv
 opencv-python
 numpy
 mss
-pyaudio
 moviepy
+#brew install opencv
+pyautogui

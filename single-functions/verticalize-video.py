@@ -21,8 +21,8 @@ def transformar_video_vertical(input_path, output_path):
     metade_direita = crop_direito.apply(video)
 
     # Posicionar as metades corretamente
-    metade_esquerda = metade_esquerda.with_position(("center", 0))  # Parte de cima
-    metade_direita = metade_direita.with_position(("center", altura))  # Parte de baixo
+    metade_esquerda = metade_esquerda.with_position(("center", altura))  # Parte de cima
+    metade_direita = metade_direita.with_position(("center", 0))  # Parte de baixo
 
     # Criar o vídeo final empilhando as duas partes
     video_vertical = CompositeVideoClip([metade_esquerda, metade_direita], size=(nova_largura, nova_altura))

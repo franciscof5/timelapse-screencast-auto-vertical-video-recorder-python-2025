@@ -4,12 +4,13 @@ import cv2
 import numpy as np
 import mss
 import time
-import pyaudio
 import wave
 from moviepy import VideoFileClip, AudioFileClip, concatenate_videoclips
 from threading import Thread
 import os
 from datetime import datetime
+from pystray import Icon, MenuItem, Menu
+from PIL import Image, ImageDraw
 
 class VideoRecorderApp:
     def __init__(self, root):
@@ -17,7 +18,7 @@ class VideoRecorderApp:
         self.root.title("Video Recorder")
         self.root.geometry("300x200")
 
-        self.timelapse_fps = 1 # FPS inicial
+        self.timelapse_fps = 1  # FPS inicial
         self.recording_audio = False  # Flag para gravação de áudio
         self.frames_audio = []  # Armazenar os frames de áudio
         self.timelapse_segments = []  # Armazenar os segmentos de timelapse (ligado/desligado)
@@ -45,12 +46,38 @@ class VideoRecorderApp:
         self.progress_bar = tk.Scale(self.root, from_=0, to=100, orient="horizontal", length=200)
         self.progress_bar.pack(pady=10)
 
+        # Inicializa o ícone da bandeja
+        self.icon = Icon("video_recorder", self.create_default_image(), menu=self.create_tray_menu())
+
+    def create_recording_image(self):
+        image = Image.new("RGB", (64, 64), color=(255, 0, 0))  # Cor vermelha para gravação
+        draw = ImageDraw.Draw(image)
+        draw.text((10, 10), "Gravando", fill="white")  # Texto "Gravando"
+        return image
+
+    def create_default_image(self):
+        image = Image.new("RGB", (64, 64), color=(0, 255, 0))  # Cor verde para inativo
+        draw = ImageDraw.Draw(image)
+        draw.text((10, 10), "Inativo", fill="white")  # Texto "Inativo"
+        return image
+
+    def create_tray_menu(self):
+        return Menu(
+            MenuItem("Iniciar Gravação", self.start_recording),
+            MenuItem("Parar Gravação", self.stop_recording),
+            MenuItem("Sair", self.on_quit)
+        )
+
+    def on_quit(self, icon, item):
+        icon.stop()
+
     def toggle_recording(self):
         if self.recording:
             self.recording = False
             self.record_button.config(text="Iniciar Gravação")
             self.status_label.config(text="Gravação finalizada.")
             self.save_video_with_audio()  # Salva o vídeo e áudio depois que a gravação parar
+            self.icon.icon = self.create_default_image()  # Ícone normal após parar
         else:
             self.recording = True
             self.record_button.config(text="Parar Gravação")
@@ -60,58 +87,64 @@ class VideoRecorderApp:
             self.frames_audio = []  # Limpa a lista de frames de áudio
             self.timelapse_segments = []  # Limpa os segmentos de timelapse
             self.start_time = time.time()  # Define o tempo de início da gravação
-
+            self.icon.icon = self.create_recording_image()  # Ícone de gravação ao iniciar
             self.record_thread = Thread(target=self.record_screen, daemon=True)
             self.record_thread.start()
 
-    def start_audio_recording(self):
-        # Inicializa e começa a gravação de áudio
-        if not self.recording_audio:
-            self.recording_audio = True
-            self.audio_thread = Thread(target=self.record_audio, daemon=True)
-            self.audio_thread.start()
+    def start_recording(self, icon, item):
+        self.toggle_recording()
 
-    def save_audio(self):
-        # Salva o áudio gravado em um arquivo
-        if self.frames_audio:
-            try:
-                with wave.open("output_audio.wav", 'wb') as wf:
-                    wf.setnchannels(1)
-                    wf.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
-                    wf.setframerate(44100)
-                    wf.writeframes(b''.join(self.frames_audio))
-                print("Áudio salvo em 'output_audio.wav'")
-            except Exception as e:
-                print(f"Erro ao salvar áudio: {e}")
-        else:
-            print("Nenhum áudio foi gravado.")
+    def stop_recording(self, icon, item):
+        self.toggle_recording()
 
-    def stop_audio_recording(self):
-        # Para a gravação de áudio
-        if self.stream:
-            print("Parando a gravação de áudio...")
-            self.stream.stop_stream()
-            self.stream.close()
-            self.recording_audio = False
-            self.save_audio()
-        else:
-            print("Stream de áudio não iniciado corretamente.")
+    # def start_audio_recording(self):
+    #     # Inicializa e começa a gravação de áudio
+    #     if not self.recording_audio:
+    #         self.recording_audio = True
+    #         self.audio_thread = Thread(target=self.record_audio, daemon=True)
+    #         self.audio_thread.start()
 
-    def record_audio(self):
-        p = pyaudio.PyAudio()
-        self.stream = p.open(format=pyaudio.paInt16,
-                            channels=1,
-                            rate=44100,
-                            input=True,
-                            frames_per_buffer=1024)
+    # def save_audio(self):
+    #     # Salva o áudio gravado em um arquivo
+    #     if self.frames_audio:
+    #         try:
+    #             with wave.open("output_audio.wav", 'wb') as wf:
+    #                 wf.setnchannels(1)
+    #                 wf.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
+    #                 wf.setframerate(44100)
+    #                 wf.writeframes(b''.join(self.frames_audio))
+    #             print("Áudio salvo em 'output_audio.wav'")
+    #         except Exception as e:
+    #             print(f"Erro ao salvar áudio: {e}")
+    #     else:
+    #         print("Nenhum áudio foi gravado.")
 
-        print("Gravando áudio...")
+    # def stop_audio_recording(self):
+    #     # Para a gravação de áudio
+    #     if self.stream:
+    #         print("Parando a gravação de áudio...")
+    #         self.stream.stop_stream()
+    #         self.stream.close()
+    #         self.recording_audio = False
+    #         self.save_audio()
+    #     else:
+    #         print("Stream de áudio não iniciado corretamente.")
 
-        self.recording_audio = True
-        start_time = time.time()
-        while self.recording_audio:
-            data = self.stream.read(1024)
-            self.frames_audio.append(data)  # Armazena o áudio
+    # def record_audio(self):
+    #     p = pyaudio.PyAudio()
+    #     self.stream = p.open(format=pyaudio.paInt16,
+    #                         channels=1,
+    #                         rate=44100,
+    #                         input=True,
+    #                         frames_per_buffer=1024)
+
+    #     print("Gravando áudio...")
+
+    #     self.recording_audio = True
+    #     start_time = time.time()
+    #     while self.recording_audio:
+    #         data = self.stream.read(1024)
+    #         self.frames_audio.append(data)  # Armazena o áudio
 
     def record_screen(self):
         output_file = "output_video.mp4"
@@ -198,4 +231,9 @@ if __name__ == "__main__":
     root = tk.Tk()
     root.config(bg="lightblue")
     app = VideoRecorderApp(root)
+    
+    # Rodar o ícone na bandeja em uma thread separada
+    tray_thread = Thread(target=app.icon.run, daemon=True)
+    tray_thread.start()
+    
     root.mainloop()
